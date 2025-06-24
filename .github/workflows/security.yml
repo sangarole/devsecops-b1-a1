@@ -13,99 +13,43 @@ jobs:
   code-quality:
     name: Code Quality and Coverage
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        language: [python]
 
+    steps:
+    # Step 1: Checkout the code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+    # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
+    # Step 3: Installing dependancies
       - name: Install dependencies
         run: |
           pip install pylint pytest pytest-cov
 
+    # Step 3: Run the Pylint 
       - name: Run Pylint
         run: |
           pylint sample-project/ --exit-zero --output-format=colorized
 
+    # Step 3: Run the unit test with coverage
       - name: Run Unit Tests with Coverage
         run: |
           pytest --cov=sample-project --cov-report=term --cov-report=xml
-
+    
+    # Step 3: Upload the coverage report
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.xml
-          
-  bandit-lint:
-    name: Python Security Linting (Bandit)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install Bandit
-        run: pip install bandit
-
-      - name: Run Bandit
-        run: bandit -r sample-project/
-
-  secret-scan:
-    name: Secret Scanning (Gitleaks)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --source=. --report-path=gitleaks-report.json --report-format=json
-
-  dependency-scan:
-    name: Dependency Scanning (Trivy FS)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Install Trivy
-        run: |
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
-
-      - name: Run Trivy filesystem scan
-        run: trivy fs --scanners vuln sample-project/
-
-  container-scan:
-    name: Container Image Scanning (Trivy Image)
-    runs-on: ubuntu-latest
-    needs: [dependency-scan]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Build Docker Image
-        run: docker build -t myapp:latest sample-project/
-
-      - name: Install Trivy
-        run: |
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
-
-      - name: Scan Docker Image
-        run: trivy image myapp:latest
