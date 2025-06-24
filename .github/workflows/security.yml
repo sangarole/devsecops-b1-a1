@@ -1,12 +1,45 @@
 name: Security Pipeline
 
+# Triggers for the pipeline
 on:
   push:
-    branches: [ "main" ]
+    branches: [main, security-pipeline]
   pull_request:
-  workflow_dispatch:
+    branches: [main, security-pipeline]
+  schedule:
+    - cron: '0 0 * * 0'  # Run every Sunday at midnight UTC
 
 jobs:
+  code-quality:
+    name: Code Quality and Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pylint pytest pytest-cov
+
+      - name: Run Pylint
+        run: |
+          pylint sample-project/ --exit-zero --output-format=colorized
+
+      - name: Run Unit Tests with Coverage
+        run: |
+          pytest --cov=sample-project --cov-report=term --cov-report=xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
+          
   bandit-lint:
     name: Python Security Linting (Bandit)
     runs-on: ubuntu-latest
